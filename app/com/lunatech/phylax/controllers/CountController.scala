@@ -1,7 +1,5 @@
 package com.lunatech.phylax.controllers
 
-import javax.inject._
-
 import com.lunatech.phylax.services.Counter
 import play.api._
 import play.api.mvc._
@@ -12,8 +10,7 @@ import play.api.mvc._
  * `Action` that shows an incrementing count to users. The [[Counter]]
  * object is injected by the Guice dependency injection system.
  */
-@Singleton
-class CountController @Inject() (counter: Counter) extends Controller {
+class CountController(counter: Counter) extends Controller {
 
   /**
    * Create an action that responds with the [[Counter]]'s current
