@@ -1,7 +1,6 @@
 package com.lunatech.phylax.controllers
 
 import akka.actor.ActorSystem
-import javax.inject._
 import play.api._
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -17,8 +16,7 @@ import scala.concurrent.duration._
  * @param exec We need an `ExecutionContext` to execute our
  * asynchronous code.
  */
-@Singleton
-class AsyncController @Inject() (actorSystem: ActorSystem)(implicit exec: ExecutionContext) extends Controller {
+class AsyncController(actorSystem: ActorSystem)(implicit exec: ExecutionContext) extends Controller {
 
   /**
    * Create an Action that returns a plain text message after a delay

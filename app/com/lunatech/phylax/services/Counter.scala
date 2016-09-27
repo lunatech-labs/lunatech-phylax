@@ -22,8 +22,7 @@ trait Counter {
  * annotation we would get a new instance every time a [[Counter]] is
  * injected.
  */
-@Singleton
-class AtomicCounter extends Counter {  
+class AtomicCounter extends Counter {
   private val atomicCounter = new AtomicInteger()
   override def nextCount(): Int = atomicCounter.getAndIncrement()
 }

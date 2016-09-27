@@ -20,8 +20,7 @@ import scala.concurrent.Future
  * This class needs to run code when the server stops. It uses the
  * application's [[ApplicationLifecycle]] to register a stop hook.
  */
-@Singleton
-class ApplicationTimer @Inject() (clock: Clock, appLifecycle: ApplicationLifecycle) {
+class ApplicationTimer(clock: Clock, appLifecycle: ApplicationLifecycle) {
 
   // This code is called when the application starts.
   private val start: Instant = clock.instant
