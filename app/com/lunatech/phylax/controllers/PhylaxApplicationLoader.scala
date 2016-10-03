@@ -4,6 +4,7 @@ import java.time.Clock
 
 import com.lunatech.phylax.filters.ExampleFilter
 import com.lunatech.phylax.services.{ApplicationTimer, AtomicCounter}
+import com.lunatech.phylax.state.StateModule
 import play.api._
 import play.api.ApplicationLoader.Context
 import play.api.http.DefaultHttpErrorHandler
@@ -23,6 +24,9 @@ class PhylaxApplicationLoader extends ApplicationLoader {
 }
 
 class PhylaxComponents(context: Context) extends BuiltInComponentsFromContext(context) {
+  private val stateModule = new StateModule(actorSystem)
+  private val mainState = stateModule.mainState
+
   override def router: Router = new Routes(DefaultHttpErrorHandler,
     new HomeController,
     new CountController(new AtomicCounter),
