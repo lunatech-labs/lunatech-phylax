@@ -2,10 +2,10 @@ package com.lunatech.phylax.model.main
 
 import org.joda.time.DateTime
 
-private object TestData {
-  val email = "foo@example.com"
+object TestData {
+  val email = "foo.bar@example.com"
   val name = "Foo Bar"
-  val employee = Employee(email, name)
+  val employee = Employee(email, name, DateTime.now)
 
   val team = Team(employee, Nil, DateTime.now)
 }

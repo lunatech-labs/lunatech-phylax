@@ -3,6 +3,8 @@ package com.lunatech.phylax.model.main
 import org.scalatest.{Matchers, WordSpec}
 import TestData._
 import org.scalatest.prop.PropertyChecks
+import com.lunatech.phylax.model.main.Generators._
+import org.scalacheck.Gen
 
 class EmployeeSpec extends WordSpec with Matchers with PropertyChecks {
 
@@ -15,9 +17,15 @@ class EmployeeSpec extends WordSpec with Matchers with PropertyChecks {
       employee.name shouldBe name
     }
 
+    "foo" in {
+      forAll(Gen.nonEmptyListOf(Gen.alphaStr retryUntil { _.nonEmpty })) { s =>
+        s shouldBe s
+      }
+    }
+
     "be unique according to email address only" in {
-      forAll { (s: String) =>
-        employee shouldBe employee.copy(name = s)
+      forAll(employeeGen) { employee =>
+        employee shouldBe employee.copy(name = employee.name + "foo")
       }
     }
   }

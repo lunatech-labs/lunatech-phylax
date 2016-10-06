@@ -3,16 +3,17 @@ name := "phylax"
 version := "1.0-SNAPSHOT"
 
 val commonSettings = List(
-  scalaVersion := "2.11.8"
+  scalaVersion := "2.11.8",
+  libraryDependencies += "org.typelevel" %% "cats" % "0.7.0"
 )
 
-val playScalatestVersion = "2.2.6"
-val scalatestScalacheckVersion = "1.12.5"
+val scalatestVersion = "3.0.0"
+val scalatestScalacheckVersion = "1.13.1"
 
 val playJodaTimeVersion = "2.9.2"
 
 val scalatest = Seq(
-  "org.scalatest" %% "scalatest" % playScalatestVersion % "test",
+  "org.scalatest" %% "scalatest" % scalatestVersion % "test",
   "org.scalacheck" %% "scalacheck" % scalatestScalacheckVersion % "test"
 )
 
@@ -34,9 +35,11 @@ lazy val state = project.settings(commonSettings: _*).settings(
     "com.typesafe.akka" %% "akka-persistence" % "2.4.4",
     "com.typesafe.akka" %% "akka-testkit" % "2.4.4" % "test"
   ) ++ scalatest
-).dependsOn(model)
+).dependsOn(model, model % "test->test")
 
 lazy val model = project.settings(commonSettings: _*).settings(
-  libraryDependencies ++= scalatest :+
-    "joda-time" % "joda-time" % playJodaTimeVersion
+  libraryDependencies ++= scalatest ++ Seq(
+    "joda-time" % "joda-time" % playJodaTimeVersion,
+    "org.joda" % "joda-convert" % "1.2"
+  )
 )
