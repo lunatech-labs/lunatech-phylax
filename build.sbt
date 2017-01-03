@@ -14,7 +14,8 @@ val playJodaTimeVersion = "2.9.2"
 
 val scalatest = Seq(
   "org.scalatest" %% "scalatest" % scalatestVersion % "test",
-  "org.scalacheck" %% "scalacheck" % scalatestScalacheckVersion % "test"
+  "org.scalacheck" %% "scalacheck" % scalatestScalacheckVersion % "test",
+  "org.mockito" % "mockito-all" % "1.9.0" % "test"
 )
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala).settings(commonSettings: _*)

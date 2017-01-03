@@ -12,5 +12,4 @@ class StateModuleSpec extends TestKit(ActorSystem("statemodulespec")) with WordS
       Option(stateModule.mainState) shouldBe defined
     }
   }
-
 }

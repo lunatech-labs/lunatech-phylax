@@ -2,11 +2,14 @@ package com.lunatech.phylax.state
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
-import cats.data.Xor
+import cats.data.{NonEmptyList, Xor}
 import com.lunatech.phylax.model.main.{Employee, Generators}
 import com.lunatech.phylax.model.main.TestData._
 import com.lunatech.phylax.state.commands.JoinCommand
+import org.mockito.Mockito
+import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -19,9 +22,12 @@ class MainStateSpec extends TestKit(ActorSystem("MainStateSpec"))
   with Matchers
   with BeforeAndAfterAll
   with PropertyChecks
-  with ScalaFutures {
+  with ScalaFutures
+  with MockitoSugar {
 
-  private class TestMainState(override val persistenceId: String) extends MainState
+  private class TestMainState(override val persistenceId: String, state: State) extends MainState(state)
+
+  private val initialState = State(Nil, Nil, Map())
 
   "MainState" should {
     "create an adapter" in {
@@ -30,45 +36,85 @@ class MainStateSpec extends TestKit(ActorSystem("MainStateSpec"))
       o shouldBe defined
     }
 
-    "allow an employee to join" in {
-      val actorAdapter: ActorAdapter = new ActorAdapter(system.actorOf(Props(new TestMainState("mainstatespec-actor1"))))
-      whenReady(actorAdapter.sendCommand(JoinCommand(email, name)) ) {
-        case (Xor.Right(Employee(`email`, `name`, _))) => succeed
-        case r => fail(s"Return value was $r io. Xor.right(Employee($email,$name,???))")
+    "pass the command to the state" when {
+      "given a JoinCommand" in {
+
+        val mockState = mock[State]
+        val actorAdapter = system.actorOf(Props(new TestMainState("mainstatespec-actor1", mockState)))
+
+        val command = JoinCommand("foo@example.com", "Foo Bar")
+
+        when(mockState.validateCommand(command)(self)).thenReturn(None)
+
+        actorAdapter ! command
+
+        verify(mockState).validateCommand(command)(self)
       }
     }
+  }
 
-    "not allow an employee to join twice" in {
-      val actorAdapter: ActorAdapter = new ActorAdapter(system.actorOf(Props(new TestMainState("mainstatespec-actor2"))))
-      whenReady {
-        for {
-          r1 <- actorAdapter sendCommand  JoinCommand(email, name)
-          r2 <- actorAdapter sendCommand  JoinCommand(email, "Foo Barrio")
-        } yield {
-          r1 -> r2
+  "State" should {
+    "allow an employee to join" in {
+
+      val command = JoinCommand(email, name)
+      val events = command.events
+
+      initialState.validateCommand(command)(self) shouldBe NonEmptyList.fromList(events)
+
+      val newState = events.foldLeft(initialState) { case (state, event) => state.processEvent(event)(self) }
+
+      expectMsgPF() {
+        case Xor.Right(Employee(`email`, `name`, _)) => succeed
+      }
+
+      newState.assigned shouldBe empty
+      newState.teams shouldBe empty
+      newState.unassigned should have size 1
+      newState.unassigned.head should have (
+        'email (email),
+        'name (name)
+      )
+    }
+
+    "not allow an employee to join twice" when {
+      "employee is unassigned" in {
+        val newState = initialState.copy(unassigned = List(employee))
+
+        newState.validateCommand(JoinCommand(email, name))(self) shouldBe None
+
+        expectMsgPF() {
+          case Xor.Left(e: IllegalStateException) if e.getMessage == "Employee already exists" => succeed
         }
-      } {
-        case (Xor.Right(Employee(`email`, `name`, _)), Xor.Left(e: IllegalStateException)) =>
-          e.getMessage shouldBe "Employee already exists"
-        case r =>
-          fail(s"""Return value was $r io. (Xor.right(Employee($email,$name,???),Xor.left(IllegalStateException("Employee already exists"))""")
+      }
+
+      "employee is assigned" in {
+        val newState = initialState.copy(unassigned = List(employee), teams = Map(employee -> Nil))
+
+        newState.validateCommand(JoinCommand(email, name))(self) shouldBe None
+
+        expectMsgPF() {
+          case Xor.Left(e: IllegalStateException) if e.getMessage == "Employee already exists" => succeed
+        }
       }
     }
 
     "allow an arbitrary number of employees to join" in {
-      var count = 0
-
       forAll(Generators.nonEmptyListOfEmailAndNameGen) { emailsAndNames =>
-        val actorAdapter: ActorAdapter = new ActorAdapter(system.actorOf(Props(new TestMainState(s"mainstatespec-actor3-$count"))))
-        count += 1
+        val newState = emailsAndNames.foldLeft(initialState) { case (state, (email, name)) =>
+            val events = state.validateCommand(JoinCommand(email, name))(self)
+            events shouldBe defined
+            val intermediateState = events.get.foldLeft(state) { case (s, event) =>
+                s.processEvent(event)(self)
+            }
 
-        val eventualResults: Future[List[Xor[Exception, Employee]]] = Future.traverse(emailsAndNames) { case(email, name) =>
-          actorAdapter sendCommand JoinCommand(email, name)
+            expectMsgPF() {
+              case Xor.Right(Employee(`email`, `name`, _)) => succeed
+            }
+
+            intermediateState
         }
 
-        whenReady(eventualResults) { results =>
-          results collect { case Xor.Right(e: Employee) => e } should have size emailsAndNames.size
-        }
+        newState.unassigned should have size emailsAndNames.size
       }
     }
   }

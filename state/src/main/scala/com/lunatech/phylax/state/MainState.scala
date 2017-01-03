@@ -3,7 +3,7 @@ package com.lunatech.phylax.state
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.persistence.{PersistentActor, SnapshotOffer}
 import akka.util.Timeout
-import cats.data.Xor
+import cats.data.{NonEmptyList, Xor}
 import com.lunatech.phylax.model.main.{Employee, Team}
 import com.lunatech.phylax.state.commands.{Command, JoinCommand}
 import com.lunatech.phylax.state.events.{Event, JoinEvent}
@@ -11,7 +11,7 @@ import org.joda.time.DateTime
 
 import scala.concurrent.Future
 
-private class MainState extends PersistentActor {
+private class MainState(private var state: State) extends PersistentActor {
   override val persistenceId: String = "main-state"
 
   override val receiveRecover: Receive = {
@@ -20,35 +20,41 @@ private class MainState extends PersistentActor {
   }
 
   override val receiveCommand: Receive = {
-    case command: Command[_] => command match {
-      case JoinCommand(email, _) if state.employeeExists(email) =>
-        sender ! Xor.left(new IllegalStateException("Employee already exists"))
-      case j: JoinCommand =>
-        persistAll(j.events)(updateState)
-    }
+    case command: Command[_] =>
+      state.validateCommand(command)(sender) match {
+        case Some(events) => persistAll(events.toList)(updateState)
+        case None => ()
+      }
 
     case _ => ()
   }
 
-  private var state = State(Nil, Nil, Nil)
-
-  private def updateState(event: Event): Unit = {
-    event match {
-      case JoinEvent(email, name) =>
-        val employee = Employee(email, name, DateTime.now)
-        state = state.copy(unassigned = employee :: state.unassigned)
-        sender ! Xor.right(employee)
-    }
-
-  }
+  private def updateState(event: Event): Unit = state = state.processEvent(event)(self)
 }
 
-private case class State(unassigned: List[Employee], assigned: List[Employee], teams: List[Team]) {
-  def employeeExists(email: String): Boolean = (unassigned ::: assigned).map(_.email).contains(email)
+private case class State(unassigned: List[Employee], assigned: List[Employee], teams: Map[Employee, List[Employee]]) {
+  def processEvent(event: Event)(sender: ActorRef): State = event match {
+    case JoinEvent(email, name) =>
+      val employee = Employee(email, name, DateTime.now)
+      sender ! Xor.right(employee)
+      copy(unassigned = employee :: unassigned)
+  }
+
+  def validateCommand(command: Command[_])(sender: ActorRef): Option[NonEmptyList[Event]] = {
+    command match {
+      case JoinCommand(email, _) if employeeExists(email) =>
+        sender ! Xor.left(new IllegalStateException("Employee already exists"))
+        None
+      case j: JoinCommand =>
+        NonEmptyList.fromList(j.events)
+    }
+  }
+
+  private def employeeExists(email: String): Boolean = (unassigned ::: assigned).map(_.email).contains(email)
 }
 
 object MainState {
-  def apply(actorSystem: ActorSystem): ActorAdapter = new ActorAdapter(actorSystem.actorOf(Props[MainState]))
+  def apply(actorSystem: ActorSystem): ActorAdapter = new ActorAdapter(actorSystem.actorOf(Props(new MainState(State(Nil, Nil, Map())))))
 }
 
 class ActorAdapter private[state] (actorRef: ActorRef) {
