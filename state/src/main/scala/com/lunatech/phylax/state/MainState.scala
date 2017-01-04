@@ -6,8 +6,8 @@ import akka.util.Timeout
 import cats.data.{NonEmptyList, Xor}
 import com.lunatech.persistence.generic.{GenericPersistentActor, GenericState}
 import com.lunatech.phylax.model.main.{Employee, Team}
-import com.lunatech.phylax.state.commands.{Command, JoinCommand}
-import com.lunatech.phylax.state.events.{Event, JoinEvent}
+import com.lunatech.phylax.state.commands.{Command, JoinCommand, PromoteCommand}
+import com.lunatech.phylax.state.events.{Event, JoinEvent, PromoteEvent}
 import org.joda.time.DateTime
 
 import scala.concurrent.Future
@@ -20,6 +20,11 @@ private case class State(unassigned: List[Employee], assigned: List[Employee], t
       val employee = Employee(email, name, DateTime.now)
       sender ! Xor.right(employee)
       copy(unassigned = employee :: unassigned)
+
+    case PromoteEvent(email) =>
+      val employee = getEmployee(email)
+      sender ! Xor.right(Team(employee, Nil))
+      copy(teams = teams + (employee -> Nil))
   }
 
   def validateCommand(command: Command[_])(sender: ActorRef): Option[NonEmptyList[Event]] = {
@@ -29,10 +34,21 @@ private case class State(unassigned: List[Employee], assigned: List[Employee], t
         None
       case j: JoinCommand =>
         NonEmptyList.fromList(j.events)
+
+      case PromoteCommand(email) if !employeeExists(email) =>
+        sender ! Xor.left(new IllegalStateException("Employee does not exist"))
+        None
+      case PromoteCommand(email) if isManager(email) =>
+        sender ! Xor.left(new IllegalStateException("Employee is already a manager"))
+        None
+      case p: PromoteCommand =>
+        NonEmptyList.fromList(p.events)
     }
   }
 
   private def employeeExists(email: String): Boolean = (unassigned ::: assigned).map(_.email).contains(email)
+  private def isManager(email: String): Boolean = teams.keys.map(_.email).toList.contains(email)
+  private def getEmployee(email: String): Employee = (unassigned ::: assigned).find(_.email == email).head
 }
 
 object MainState {

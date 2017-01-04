@@ -7,5 +7,5 @@ object TestData {
   val name = "Foo Bar"
   val employee = Employee(email, name, DateTime.now)
 
-  val team = Team(employee, Nil, DateTime.now)
+  val team = Team(employee, Nil)
 }

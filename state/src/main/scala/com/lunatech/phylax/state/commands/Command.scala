@@ -1,7 +1,7 @@
 package com.lunatech.phylax.state.commands
 
-import com.lunatech.phylax.model.main.Employee
-import com.lunatech.phylax.state.events.{Event, JoinEvent}
+import com.lunatech.phylax.model.main.{Employee, Team}
+import com.lunatech.phylax.state.events.{Event, JoinEvent, PromoteEvent}
 
 sealed trait Command[V] {
   def events: List[Event]
@@ -9,4 +9,8 @@ sealed trait Command[V] {
 
 case class JoinCommand(email: String, name: String) extends Command[Employee] {
   override def events: List[Event] = List(JoinEvent(email, name))
+}
+
+case class PromoteCommand(email: String) extends Command[Team] {
+  override def events: List[Event] = List(PromoteEvent(email))
 }

@@ -12,8 +12,8 @@ class TeamSpec extends WordSpec with Matchers {
     }
 
     "not allow a manager to be in his own team" in {
-      an[IllegalArgumentException] shouldBe thrownBy(Team(employee, List(TeamMember(employee, DateTime.now)), DateTime.now))
-      an[IllegalArgumentException] shouldBe thrownBy(team.copy(members = List(TeamMember(employee, DateTime.now))))
+      an[IllegalArgumentException] shouldBe thrownBy(Team(employee, List(employee)))
+      an[IllegalArgumentException] shouldBe thrownBy(team.copy(members = List(employee)))
     }
   }
 
