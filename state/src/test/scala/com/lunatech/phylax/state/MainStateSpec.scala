@@ -6,15 +6,10 @@ import cats.data.{NonEmptyList, Xor}
 import com.lunatech.phylax.model.main.{Employee, Generators}
 import com.lunatech.phylax.model.main.TestData._
 import com.lunatech.phylax.state.commands.JoinCommand
-import org.mockito.Mockito
-import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 class MainStateSpec extends TestKit(ActorSystem("MainStateSpec"))
   with ImplicitSender
@@ -34,22 +29,6 @@ class MainStateSpec extends TestKit(ActorSystem("MainStateSpec"))
       val o = Option(MainState(system))
 
       o shouldBe defined
-    }
-
-    "pass the command to the state" when {
-      "given a JoinCommand" in {
-
-        val mockState = mock[State]
-        val actorAdapter = system.actorOf(Props(new TestMainState("mainstatespec-actor1", mockState)))
-
-        val command = JoinCommand("foo@example.com", "Foo Bar")
-
-        when(mockState.validateCommand(command)(self)).thenReturn(None)
-
-        actorAdapter ! command
-
-        verify(mockState).validateCommand(command)(self)
-      }
     }
   }
 

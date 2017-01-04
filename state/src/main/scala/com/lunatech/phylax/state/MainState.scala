@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.persistence.{PersistentActor, SnapshotOffer}
 import akka.util.Timeout
 import cats.data.{NonEmptyList, Xor}
+import com.lunatech.persistence.generic.{GenericPersistentActor, GenericState}
 import com.lunatech.phylax.model.main.{Employee, Team}
 import com.lunatech.phylax.state.commands.{Command, JoinCommand}
 import com.lunatech.phylax.state.events.{Event, JoinEvent}
@@ -11,28 +12,9 @@ import org.joda.time.DateTime
 
 import scala.concurrent.Future
 
-private class MainState(private var state: State) extends PersistentActor {
-  override val persistenceId: String = "main-state"
+private class MainState(private var state: State) extends GenericPersistentActor[State, Command, Event](state, "main-state")
 
-  override val receiveRecover: Receive = {
-    case event: Event => updateState(event)
-    case SnapshotOffer(_, snapshot: State) => state = snapshot
-  }
-
-  override val receiveCommand: Receive = {
-    case command: Command[_] =>
-      state.validateCommand(command)(sender) match {
-        case Some(events) => persistAll(events.toList)(updateState)
-        case None => ()
-      }
-
-    case _ => ()
-  }
-
-  private def updateState(event: Event): Unit = state = state.processEvent(event)(self)
-}
-
-private case class State(unassigned: List[Employee], assigned: List[Employee], teams: Map[Employee, List[Employee]]) {
+private case class State(unassigned: List[Employee], assigned: List[Employee], teams: Map[Employee, List[Employee]]) extends GenericState[State, Command, Event] {
   def processEvent(event: Event)(sender: ActorRef): State = event match {
     case JoinEvent(email, name) =>
       val employee = Employee(email, name, DateTime.now)

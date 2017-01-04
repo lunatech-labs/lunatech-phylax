@@ -31,12 +31,19 @@ libraryDependencies ++= Seq(
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 
+lazy val genericPersistence = (project in file("generic-persistence")).settings(commonSettings: _*).settings(
+  libraryDependencies ++= Seq(
+    "com.typesafe.akka" %% "akka-persistence" % "2.4.4",
+    "com.typesafe.akka" %% "akka-testkit" % "2.4.4" % "test"
+  ) ++ scalatest
+)
+
 lazy val state = project.settings(commonSettings: _*).settings(
   libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-persistence" % "2.4.4",
     "com.typesafe.akka" %% "akka-testkit" % "2.4.4" % "test"
   ) ++ scalatest
-).dependsOn(model, model % "test->test")
+).dependsOn(model, model % "test->test", genericPersistence)
 
 lazy val model = project.settings(commonSettings: _*).settings(
   libraryDependencies ++= scalatest ++ Seq(
